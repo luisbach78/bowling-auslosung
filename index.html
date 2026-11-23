@@ -200,7 +200,7 @@ const TOPIC="sgmb-bahn-auslosung-7k2q9x",NTFY="https://ntfy.sh";
 const VIEW_URL=location.origin+location.pathname;
 const IS_HOST=location.hash.replace("#","").toLowerCase()==="orga";
 const COLORS=["#e63946","#2a9d8f","#f4a12b","#457b9d"],DEFAULT_LANES=["Kölsch","Glühwein","Strike","Pils"];
-const EXAMPLE=Array.from({length:24},(_,i)=>"Spieler "+(i+1)).join("\n");
+const EXAMPLE=["Lukas","Jonas","Tim","Felix","Niklas","Jan","Leon","Max","Paul","Ben","Finn","Luca","Tobias","Marvin","Philipp","Kevin","Dennis","Simon","Florian","Moritz","Julian","Fabian","Nico","Sebastian"].join("\n");
 const SUSPENSE=2800,reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $=id=>document.getElementById(id);
 const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
@@ -366,10 +366,11 @@ $("copyResult").onclick=()=>{const L=lanesOf(V.picks);copyText("🎳 Bahn-Auslos
 /* ---------- Start ---------- */
 addEventListener("hashchange",()=>location.reload());
 (async()=>{
-  if(IS_HOST){document.body.className="host";$("regie").hidden=false;document.title="Regie · Bahn-Auslosung";$("names").value=ls.get("ba-names",EXAMPLE)}
+  if(IS_HOST){document.body.className="host";$("regie").hidden=false;document.title="Regie · Bahn-Auslosung";if(new URLSearchParams(location.search).has("test")){ls.set("ba-names",EXAMPLE);history.replaceState(null,"",location.pathname+"#orga");window.__test=1}$("names").value=ls.get("ba-names",EXAMPLE)||EXAMPLE}
   resize();requestAnimationFrame(draw);waiting();
   if(IS_HOST){renderSetup();hostUI();if(H_&&H_.order&&H_.order.length){applyState(hostState(H_.step?"reveal":"ready"),false)}else await loadLatest()}
   else await loadLatest();
+  if(window.__test)resetShow();
   subscribe();keepAwake()
 })();
 </script>
