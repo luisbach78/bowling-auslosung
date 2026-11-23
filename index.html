@@ -155,7 +155,7 @@ textarea:focus,input:focus{outline:none;border-color:var(--teal)}
     <button class="btn ghost" id="shareLink" type="button">Zuschauer-Link kopieren</button>
     <button class="btn ghost" id="copyResult" type="button" hidden>Ergebnis für WhatsApp kopieren</button>
     <button class="btn ghost" id="edit" type="button" hidden>Namen bearbeiten</button>
-    <button class="btn ghost" id="restart" type="button" hidden>Komplett neu auslosen</button>
+    <button class="btn ghost" id="restart" type="button" hidden>Zurück auf Anfang</button>
   </div>
 </div>
 <canvas id="fx" aria-hidden="true"></canvas>
@@ -285,7 +285,7 @@ function applyState(st,live){
 /* ---------- Live (ntfy.sh) ---------- */
 let lastId=null,es=null;
 function onAir(ok,txt){$("bug").classList.toggle("off",!ok);$("live").textContent=txt}
-async function loadLatest(){try{const r=await fetch(`${NTFY}/${TOPIC}/json?poll=1&since=all`,{cache:"no-store"}),t=await r.text();let m=null;t.split("\n").forEach(l=>{try{const j=JSON.parse(l);if(j.event==="message")m=j}catch(e){}});if(m){lastId=m.id;try{applyState(JSON.parse(m.message),false)}catch(e){}}}catch(e){onAir(false,"Verbinde")}}
+async function loadLatest(){try{const r=await fetch(`${NTFY}/${TOPIC}/json?poll=1&since=all`,{cache:"no-store"}),t=await r.text();let m=null;t.split("\n").forEach(l=>{try{const j=JSON.parse(l);if(j.event==="message")m=j}catch(e){}});if(m){lastId=m.id;if(Date.now()/1000-m.time<6*3600)try{applyState(JSON.parse(m.message),false)}catch(e){}}}catch(e){onAir(false,"Verbinde")}}
 function subscribe(){if(es)es.close();es=new EventSource(`${NTFY}/${TOPIC}/sse`+(lastId?`?since=${encodeURIComponent(lastId)}`:""));
   es.onopen=()=>onAir(true,"Live");
   es.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.event!=="message")return;lastId=m.id;const st=JSON.parse(m.message);if(IS_HOST&&st.from===HOST_ID)return;applyState(st,true)}catch(x){}};
@@ -320,7 +320,8 @@ async function drawOne(){if(busy||!H_||H_.step>=H_.order.length)return;busy=true
 $("next").onclick=()=>{autoOn=false;clearTimeout(autoT);drawOne()};
 $("auto").onclick=()=>{autoOn=!autoOn;clearTimeout(autoT);hostUI();if(autoOn&&!busy)drawOne()};
 $("edit").onclick=()=>{autoOn=false;clearTimeout(autoT);editing=true;renderSetup();hostUI();$("setup").scrollIntoView({behavior:reduce?"auto":"smooth"})};
-$("restart").onclick=e=>{const b=e.currentTarget;if(b.dataset.armed){delete b.dataset.armed;b.textContent="Komplett neu auslosen";$("start").onclick()}else{b.dataset.armed="1";b.textContent="Sicher? Nochmal tippen";setTimeout(()=>{delete b.dataset.armed;b.textContent="Komplett neu auslosen"},4000)}};
+function resetShow(){autoOn=false;clearTimeout(autoT);H_=null;try{localStorage.removeItem("ba-host")}catch(e){}editing=false;const st={v:2,from:HOST_ID,round:null,phase:"idle",picks:[],laneCount,laneNames:[],total:0,pool:[]};applyState(st,true);publish(st);renderSetup();hostUI();toast("Alle sehen wieder den Startbildschirm")}
+$("restart").onclick=e=>{const b=e.currentTarget;if(b.dataset.armed){delete b.dataset.armed;b.textContent="Zurück auf Anfang";resetShow()}else{b.dataset.armed="1";b.textContent="Sicher? Nochmal tippen";setTimeout(()=>{delete b.dataset.armed;b.textContent="Zurück auf Anfang"},4000)}};
 function copyText(txt,ok){const fb=()=>{const ta=document.createElement("textarea");ta.value=txt;ta.style.cssText="position:fixed;opacity:0";document.body.appendChild(ta);ta.select();let r=false;try{r=document.execCommand("copy")}catch(e){}ta.remove();toast(r?ok:"Kopieren ging nicht")};try{navigator.clipboard.writeText(txt).then(()=>toast(ok),fb)}catch(e){fb()}}
 $("shareLink").onclick=()=>copyText(VIEW_URL,"Link kopiert, jetzt in WhatsApp einfügen");
 $("copyResult").onclick=()=>{const L=lanesOf(V.picks);copyText("🎳 Bahn-Auslosung Weihnachtsfeier\n"+L.map((ps,i)=>`\nBahn ${i+1} · ${laneLabel(i)}\n`+ps.map(p=>"– "+p).join("\n")).join("\n")+"\n\nSchlechteste Bahn schmeißt ’ne Runde 🍺","Kopiert, jetzt in WhatsApp einfügen")};
