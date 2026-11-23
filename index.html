@@ -26,6 +26,8 @@ body.host .show{height:min(72svh,720px);min-height:480px;border-bottom:3px solid
 @keyframes blink{50%{opacity:.25}}
 .count{font:800 14px var(--b);color:var(--soft);background:var(--paper);border-radius:999px;padding:3px 12px;box-shadow:0 3px 0 rgba(29,53,87,.12)}
 .count:empty{display:none}
+.bug>span,.count{white-space:nowrap}
+@media (max-width:370px){.bug>span{display:none}}
 .count b{font:400 20px var(--d);color:var(--ink)}
 .scene{position:relative;z-index:2;display:grid;place-items:center;text-align:center;padding:10px 16px;min-height:0}
 .scene>section{grid-area:1/1;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:100%;transition:opacity .5s,transform .5s cubic-bezier(.3,1.4,.5,1)}
@@ -179,7 +181,7 @@ function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTime
 
 /* ---------- Ton ---------- */
 const Snd={ctx:null,on:false,drum:null,
-  init(){if(!this.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;this.ctx=new C()}this.ctx.resume();return true},
+  init(){if(!this.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;this.ctx=new C()}try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}this.ctx.resume();return true},
   nb(d){const c=this.ctx,b=c.createBuffer(1,Math.ceil(c.sampleRate*d),c.sampleRate),x=b.getChannelData(0);for(let i=0;i<x.length;i++)x[i]=Math.random()*2-1;const s=c.createBufferSource();s.buffer=b;return s},
   drumroll(ms){if(!this.on)return;this.stopDrum();const c=this.ctx,t=c.currentTime,d=ms/1000,s=this.nb(d+.6),f=c.createBiquadFilter(),g=c.createGain(),lfo=c.createOscillator(),lg=c.createGain();
     f.type="bandpass";f.frequency.value=180;f.Q.value=.8;lfo.frequency.setValueAtTime(14,t);lfo.frequency.linearRampToValueAtTime(26,t+d);lg.gain.value=.5;lfo.connect(lg).connect(g.gain);
@@ -236,7 +238,7 @@ function ticker(picks){const parts=["+++ Live aus dem ICE nach Köln","Schlechte
   if(picks&&picks.length)parts.push(...picks.slice(-6).reverse().map(p=>`${p.name} → Bahn ${p.lane+1} ${laneLabel(p.lane)}`));
   else parts.push("Die Namen liegen im Lostopf","Gleich geht’s los");
   const t=parts.join("   +++   ")+"   +++";if($("tickerText").textContent!==t)$("tickerText").textContent=t}
-function flapBoard(len){const f=$("flap");const fs=Math.max(16,Math.min(64,(Math.min(innerWidth,1000)*.9)/(len*.8)));f.innerHTML="";for(let i=0;i<len;i++){const t=document.createElement("div");t.className="tile";t.style.setProperty("--fs",fs+"px");f.appendChild(t)}return[...f.children]}
+function flapBoard(len){const f=$("flap");const fs=Math.max(11,Math.min(64,(Math.min(innerWidth,1000)*.92-(len-1)*4)/(len*.78)));f.innerHTML="";for(let i=0;i<len;i++){const t=document.createElement("div");t.className="tile";t.style.setProperty("--fs",fs+"px");f.appendChild(t)}return[...f.children]}
 const ABC="ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ";
 function setWord(tiles,w){tiles.forEach((t,i)=>{t.textContent=w[i]===" "?"":w[i];t.classList.add("done");if(w[i]===" ")t.classList.add("sp")})}
 function startSuspense(){
@@ -292,6 +294,10 @@ function subscribe(){if(es)es.close();es=new EventSource(`${NTFY}/${TOPIC}/sse`+
   es.onerror=()=>{onAir(false,"Verbinde");es.close();es=null;setTimeout(subscribe,2500)}}
 async function publish(st){try{const r=await fetch(`${NTFY}/${TOPIC}`,{method:"POST",body:JSON.stringify(st)});if(!r.ok)throw 0;onAir(true,"Live");return true}catch(e){onAir(false,"Kein Netz");toast("Senden klappt gerade nicht. Kurz warten und nochmal ziehen.");return false}}
 
+let wl=null;async function keepAwake(){try{if("wakeLock"in navigator&&!wl&&document.visibilityState==="visible"){wl=await navigator.wakeLock.request("screen");wl.addEventListener("release",()=>{wl=null})}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){subscribe();keepAwake();if(Snd.ctx)Snd.ctx.resume()}});
+addEventListener("pointerdown",keepAwake,{once:true});
+
 /* ---------- Regie ---------- */
 const HOST_ID=ls.get("ba-hostid",null)||(()=>{const id="h"+Math.random().toString(36).slice(2,10);ls.set("ba-hostid",id);return id})();
 let H_=ls.get("ba-host",null),laneCount=ls.get("ba-lanes",3),laneNames=ls.get("ba-laneNames",DEFAULT_LANES.slice()),busy=false,autoOn=false,autoT=null,editing=false;
@@ -333,7 +339,7 @@ addEventListener("hashchange",()=>location.reload());
   resize();requestAnimationFrame(draw);waiting();
   if(IS_HOST){renderSetup();hostUI();if(H_&&H_.order&&H_.order.length){applyState(hostState(H_.step?"reveal":"ready"),false)}else await loadLatest()}
   else await loadLatest();
-  subscribe()
+  subscribe();keepAwake()
 })();
 </script>
 </body>
